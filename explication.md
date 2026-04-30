@@ -128,3 +128,173 @@ Avec cette intégration, Wazuh dispose d'une **intelligence externe** : dès qu'
 3. **Cron job** : automatiser la mise à jour des CDB lists toutes les X heures
 
 Des questions sur une partie spécifique ?
+
+
+
+
+Parfait ! Passons à l'intégration **Wazuh → MISP**.
+
+---
+
+## Ce qu'on va faire
+
+Quand Wazuh génère une alerte, un script Python va automatiquement :
+1. **Récupérer les détails** de l'alerte (IP, hash, domaine...)
+2. **Interroger MISP** pour savoir si cet élément est connu
+3. **Créer un événement dans MISP** si c'est une nouvelle menace
+4. **Enrichir l'alerte** avec le contexte MISP
+
+---
+
+## Étape 1 — Créer le script d'intégration
+
+```bash
+sudo tee /var/ossec/integrations/custom-misp.py << 'EOF'
+#!/usr/bin/env python3
+import sys
+import json
+import requests
+import urllib3
+from datetime import datetime
+
+urllib3.disable_warnings()
+
+MISP_URL = "https://172.16.120.39:8443"
+MISP_KEY = "tbITmryVSAGMXITFgR0k8kQkbvTzm9gAZCstl5pm"
+VERIFY_SSL = False
+
+headers = {
+    "Authorization": MISP_KEY,
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+}
+
+def query_misp(value, ioc_type):
+    payload = {
+        "returnFormat": "json",
+        "value": value,
+        "type": ioc_type,
+        "limit": 5
+    }
+    r = requests.post(
+        f"{MISP_URL}/attributes/restSearch",
+        headers=headers,
+        json=payload,
+        verify=VERIFY_SSL
+    )
+    return r.json().get("response", {}).get("Attribute", [])
+
+def create_misp_event(alert):
+    event = {
+        "Event": {
+            "info": f"Wazuh Alert - {alert.get('rule', {}).get('description', 'Unknown')}",
+            "distribution": 0,
+            "threat_level_id": 2,
+            "analysis": 1,
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "Attribute": []
+        }
+    }
+    # Ajouter les attributs selon ce qui est disponible
+    data = alert.get("data", {})
+    if data.get("srcip"):
+        event["Event"]["Attribute"].append({
+            "type": "ip-src",
+            "value": data["srcip"],
+            "to_ids": True,
+            "category": "Network activity"
+        })
+    if data.get("md5_after"):
+        event["Event"]["Attribute"].append({
+            "type": "md5",
+            "value": data["md5_after"],
+            "to_ids": True,
+            "category": "Payload delivery"
+        })
+    r = requests.post(
+        f"{MISP_URL}/events/add",
+        headers=headers,
+        json=event,
+        verify=VERIFY_SSL
+    )
+    return r.json()
+
+# Lecture de l'alerte Wazuh
+alert_file = sys.argv[1]
+with open(alert_file) as f:
+    alert = json.load(f)
+
+# Extraction des données
+data = alert.get("data", {})
+rule_level = alert.get("rule", {}).get("level", 0)
+
+print(f"[*] Traitement alerte niveau {rule_level}")
+
+# Vérification dans MISP
+srcip = data.get("srcip")
+md5 = data.get("md5_after")
+
+if srcip:
+    results = query_misp(srcip, "ip-src")
+    if results:
+        print(f"[!] IP {srcip} trouvée dans MISP : {len(results)} correspondances")
+    else:
+        print(f"[-] IP {srcip} non trouvée dans MISP")
+
+if md5:
+    results = query_misp(md5, "md5")
+    if results:
+        print(f"[!] Hash {md5} trouvé dans MISP : {len(results)} correspondances")
+    else:
+        print(f"[-] Hash {md5} non trouvé dans MISP")
+
+# Créer un événement MISP si alerte critique (niveau >= 10)
+if rule_level >= 10:
+    print(f"[*] Création événement MISP...")
+    result = create_misp_event(alert)
+    if result.get("Event"):
+        print(f"[+] Événement MISP créé : ID {result['Event']['id']}")
+    else:
+        print(f"[-] Erreur création événement : {result}")
+
+EOF
+```
+
+---
+
+## Étape 2 — Permissions
+
+```bash
+sudo chmod 750 /var/ossec/integrations/custom-misp.py
+sudo chown root:wazuh /var/ossec/integrations/custom-misp.py
+```
+
+---
+
+## Étape 3 — Configurer ossec.conf
+
+```bash
+sudo nano /var/ossec/etc/ossec.conf
+```
+
+Ajoute avant la balise `</ossec_config>` :
+
+```xml
+<integration>
+  <name>custom-misp</name>
+  <hook_url>https://172.16.120.39:8443</hook_url>
+  <api_key>tbITmryVSAGMXITFgR0k8kQkbvTzm9gAZCstl5pm</api_key>
+  <level>10</level>
+  <alert_format>json</alert_format>
+</integration>
+```
+
+---
+
+## Étape 4 — Redémarrer Wazuh
+
+```bash
+sudo systemctl restart wazuh-manager
+```
+
+Lance les étapes 1 et 2 et partage le résultat.
