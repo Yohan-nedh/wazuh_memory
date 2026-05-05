@@ -12,3 +12,6 @@ puis passons  l'installation de postfix
 `
 sudo apt install postfix libsasl2-modules -y
 `
+
+puis éditons le fichier main.cf 
+sudo nano /etc/postfix/main.cf
