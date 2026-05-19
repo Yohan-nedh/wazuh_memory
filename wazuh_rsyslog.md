@@ -120,3 +120,13 @@ R1# show logging
 R1 (GNS3) → UDP 514 → NAT box → IP publique → VPS rsyslog
 → /var/log/cisco/cisco.log → Wazuh Manager → Dashboard
 ```
+
+<img width="758" height="254" alt="image" src="https://github.com/user-attachments/assets/dd61d3db-7d3e-40e1-b50f-597d48ec400c" />
+
+```
+conf t
+no logging host 81.17.98.133 transport udp port 1514
+logging host 81.17.98.133 transport udp port 514
+end
+write memory
+```
