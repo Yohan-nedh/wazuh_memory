@@ -130,3 +130,61 @@ logging host 81.17.98.133 transport udp port 514
 end
 write memory
 ```
+
+
+```
+# Accès
+enable
+configure terminal
+
+# Interface DHCP
+interface FastEthernet0/0
+ ip address dhcp
+ no shutdown
+
+# Interface statique
+interface FastEthernet0/0
+ ip address 192.168.50.2 255.255.255.0
+ no shutdown
+
+# Route par défaut
+ip route 0.0.0.0 0.0.0.0 192.168.50.1
+
+# Timestamps
+service timestamps log datetime msec localtime show-timezone
+service timestamps debug datetime msec localtime show-timezone
+
+# Syslog
+logging trap informational
+logging host 81.17.98.133
+logging buffered 16384 informational
+logging console informational
+
+# Auth logs
+login on-failure log
+login on-success log
+
+# Archive config
+archive
+ log config
+  logging enable
+  logging size 200
+  hidekeys
+
+# Sécurité
+service password-encryption
+no ip http server
+no ip http secure-server
+
+# Sauvegarde
+end
+write memory
+
+# Vérification
+show ip interface brief
+show logging
+ping 81.17.98.133
+send log 6 "TEST SYSLOG VERS WAZUH"
+
+```
+
