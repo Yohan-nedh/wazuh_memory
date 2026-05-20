@@ -103,7 +103,16 @@ sudo ss -ulnp | grep 514
 
 ---
 
+### 7.0 Comment sur hôte pour cisco accès internet
+
+```
+sudo ip link set tap0 up
+sudo ip addr add 192.168.50.1/24 dev tap0
+sudo iptables -t nat -A POSTROUTING -s 192.168.50.0/24 -o wlp2s0 -j MASQUERADE
+```
+
 ### 7. Commandes routeur Cisco (GNS3)
+
 
 ```cisco
 ! Envoyer un log test
