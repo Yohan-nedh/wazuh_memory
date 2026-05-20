@@ -188,3 +188,73 @@ send log 6 "TEST SYSLOG VERS WAZUH"
 
 ```
 
+## commande à executer sur le routeur cisco
+
+```
+! Configuration logging
+conf t
+no logging console
+logging on
+logging host 34.155.172.52(sever-wazuh) transport udp port 514
+logging trap informational
+logging facility local7
+logging source-interface FastEthernet0/0
+service timestamps log datetime msec localtime show-timezone
+logging buffered 16384 debugging
+no logging rate-limit
+end
+write memory
+
+! Vérification
+show logging
+show running-config | include logging
+ping 34.155.172.52
+
+! Test
+send log 6 "TEST SYSLOG"
+```
+
+## juste pour syslog
+
+```
+conf t
+logging on
+logging host 34.155.172.52 transport udp port 514
+logging trap informational
+logging facility local7
+service timestamps log datetime msec localtime show-timezone
+end
+write memory
+
+! Vérification
+show logging
+
+! Test
+send log 6 "TEST SYSLOG"
+```
+
+
+## Pour fortigate
+
+**Sur FortiGate :**
+
+```
+get log syslogd setting
+```
+
+```
+config log syslogd setting
+    set server "137.255.170.162"
+    set port 2514
+    set mode udp
+    set interface-select-method auto
+end
+```
+
+```
+get log syslogd setting
+```
+
+```
+diagnose log test
+```
