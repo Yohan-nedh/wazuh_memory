@@ -121,34 +121,37 @@ docker compose down
 docker compose up -d
 docker compose ps
 ```
+Pas tout à fait ! Laisse-moi clarifier les catégories MISP :
 
-### Enrichissement des alerts(logs)
+## Les catégories MISP
 
-Dans un SIEM, MISP sert à enrichir les événements de sécurité en temps réel. Quand le SIEM reçoit un log contenant une IP ou un hash, il le compare automatiquement avec les IoC stockés dans MISP pour savoir si c'est une menace connue.
-Concrètement :
+| Catégorie | Rôle |
+|---|---|
+| **Network activity** | Tout ce qui est réseau : IP, port, domaine, URL |
+| **External analysis** | Résultats d'analyse externe : VirusTotal, sandbox, règle IDS |
+| **Payload delivery** | Fichiers malveillants, hash, malware |
+| **Artifacts dropped** | Fichiers créés par le malware |
+| **Attribution** | Acteur, groupe, campagne |
 
-Un log réseau contient une IP → le SIEM interroge MISP → MISP répond "cette IP est associée à un groupe APT"
-Le SIEM enrichit alors l'alerte avec ce contexte
+---
 
+## Dans ton cas brute force SSH
 
-problème
-[+] up 38/48
- ⠙ Image ghcr.io/misp/misp-docker/misp-modules:latest [⣿⣿⣿⣿⣿⡀⡀⡀⣿] 135.3MB / 606.2MB          Pulling                                                                                                                                 1375.0s
- ✔ Image ghcr.io/egos-tech/smtp:1.1.3                                                        Pulled                                                                                                                                  1289.7s
- ✔ Image valkey/valkey:7.2                                                                   Pulled                                                                                                                                   384.9s
-[+] up 51/51iadb:10.11                                                                       Pulled                  ✔ Image ghcr.io/misp/misp-docker/misp-modules:latest Pulled                                                 2978.9s[+] up 52/56r.io/egos-tech/smtp:1.1.3                 Pulled                                                 1289.7s
-[+] up 56/57r.io/misp/misp-docker/misp-modules:latest Pulled                                                 2978.9s ✔ Image ghcr.io/misp/misp-docker/misp-modules:latest Pulled                                                 2978.9s ✔ Image ghcr.io/egos-tech/smtp:1.1.3                 Pulled                                                 1289.7s
- ✔ Image valkey/valkey:7.2                            Pulled                                                  384.9s
- ✔ Image mariadb:10.11                                Pulled                                                  619.0s
- ✔ Image ghcr.io/misp/misp-docker/misp-core:latest    Pulled                                                 2581.1s
- ✔ Network misp-docker_default                        Created                                                   0.2s
- ✔ Volume misp-docker_cache_data                      Created                                                   0.0s
- ✔ Volume misp-docker_mysql_data                      Created                                                   0.0s
- ✔ Volume misp-docker_misp_guard_ca                   Created                                                   0.0s
- ✔ Container misp-docker-redis-1                      Healthy                                                   8.8s
- ✘ Container misp-docker-misp-modules-1               Error dependency misp-modules failed to start            13.3s
- ✔ Container misp-docker-mail-1                       Started                                                   3.2s
- ⠋ Container misp-docker-db-1                         Waiting                                                  13.3s
- ✔ Container misp-docker-misp-core-1                  Created                                                   0.2s
-dependency failed to start: container misp-docker-misp-modules-1 is unhealthy
+```
+data.srcip   → Network activity  (c'est une IP réseau)
+agent.ip     → Network activity  (c'est une IP réseau)
+rule.id      → External analysis (c'est une règle IDS/Wazuh)
+rule.level   → External analysis (c'est une analyse)
+timestamp    → External analysis (métadonnée d'analyse)
+```
+
+---
+
+## Donc
+
+**Network activity** = les IPs → ce sont les **IOCs**
+
+**External analysis** = les métadonnées Wazuh → c'est le **contexte de l'alerte**
+
+Les deux ensemble = **enrichissement complet** de l'événement MISP 🎯
 
