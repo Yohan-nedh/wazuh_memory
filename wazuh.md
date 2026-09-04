@@ -16,5 +16,6 @@ et voilà notre **wazuh**
 
 ## Configuratoin reception de mail
 
-Voir la configuration de postfix mentionner dans ce dépôt sous le nom de postfix_config
+Voir la configuration de postfix mentionner dans ce dépôt sous le nom de **postfix_config** et voici la configuration que nous avons adopté
+
 
